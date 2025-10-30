@@ -13,7 +13,7 @@ A comprehensive software implementation of a Lock-In Amplifier with performance 
 
 ## Installation
 
-### Method 1: Using requirements.txt (Recommended)
+### Using requirements.txt (Recommended)
 1. Clone the repository:
 ```bash
 git clone https://github.com/yourusername/software-LIA.git
@@ -25,4 +25,5 @@ A separate cleanup script is provided to remove generated output files:
 
 ### Basic cleanup (with confirmation)
 ```bash
+
 python clean.py
