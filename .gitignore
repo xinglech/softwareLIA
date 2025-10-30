@@ -1,0 +1,18 @@
+# Output files
+*.log
+*.png
+*.jpg
+*.pdf
+
+# Python cache
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual environments
+venv/
+env/
+
+# IDE files
+.vscode/
+.idea/
