@@ -2,18 +2,25 @@
 
 A comprehensive software implementation of a Lock-In Amplifier with performance analysis capabilities.
 
+### Hardware LIA reference
+1.[SR860 website](https://thinksrs.com/products/sr860.html)
+2.[SR860 user manual](https://www.thinksrs.com/downloads/pdfs/manuals/SR860m.pdf)
+
 ### Features
 
 1. **Digital Lock-In Detection**: X, Y, R, and θ component extraction
 2. **Frequency Scanning**: Automatic optimal frequency detection
 3. **Autophase Optimization**: Automatic phase adjustment for maximum signal
 4. **Comprehensive Analysis**: 8-panel visualization of all performance metrics
-5. **Realistic Signal Simulation**: Includes noise, harmonics, and phase impairments
-6. **Fast Execution**: JIT-compiled core functions using Numba
-7. **Command Line Interface**: User-friendly parameter configuration
-8. **Automated Logging**: Detailed analysis results with timestamps
-9. **High-Quality Plots**: 150 DPI PNG and JPG outputs
-10. **Cleanup Utility**: Easy removal of generated files
+   [fig_scenarios.pdf](https://github.com/user-attachments/files/23264236/fig_scenarios.pdf)
+6. **Realistic Signal Simulation**: Includes noise, harmonics, and phase impairments
+7. **Fast Execution**: JIT-compiled core functions using Numba
+   [Compiling Python code with @ji](https://numba.readthedocs.io/en/stable/user/jit.html)
+   [Numba website](https://numba.pydata.org/)
+9. **Command Line Interface**: User-friendly parameter configuration
+10. **Automated Logging**: Detailed analysis results with timestamps
+11. **High-Quality Plots**: 150 DPI PNG and JPG outputs
+12. **Cleanup Utility**: Easy removal of generated files
 
 ### Installation
 
@@ -69,27 +76,29 @@ The program generates **timestamped** files:
 
 ### Example Output
 
->Software Lock-In Amplifier - Starting Analysis...
->==================================================
->COMPREHENSIVE LOCK-IN PERFORMANCE ANALYSIS
->==================================================
->INPUT PARAMETERS:
->  signal_frequency: 123.0 kHz
->  amplitude: 10.0 mV
->  duration: 10.0 ms
->  sampling_rate: 2.0 MHz
->  time_constant: 0.001
->  noise_level: 0.005
->  phase_offset: 45
->
->FINAL RESULTS WITH UNCERTAINTIES:
->Optimal Frequency (Phase): 123.000 ± 0.250 kHz
->Optimal Frequency (Magnitude): 123.000 ± 0.250 kHz
->X-component: 9.886 ± 0.211 mV (Error: 39.8%)
->R-magnitude: 9.898 ± 0.201 mV (Error: 1.0%)
->Phase: -0.6 ± 2.9° (Error: 45.6°)
->SNR: -0.4 dB
->Residual Noise: 9.608 mV
+    Software Lock-In Amplifier - Starting Analysis...
+    ==================================================
+    COMPREHENSIVE LOCK-IN PERFORMANCE ANALYSIS
+    ==================================================
+    INPUT PARAMETERS:
+      signal_frequency: 123.0 kHz
+      amplitude: 10.0 mV
+      duration: 10.0 ms
+      sampling_rate: 2.0 MHz
+      time_constant: 0.001
+      noise_level: 0.005
+      phase_offset: 45
+    
+    FINAL RESULTS WITH UNCERTAINTIES:
+    Optimal Frequency (Phase): 123.000 ± 0.250 kHz
+    Optimal Frequency (Magnitude): 123.000 ± 0.250 kHz
+    X-component: 9.886 ± 0.211 mV (Error: 39.8%)
+    R-magnitude: 9.898 ± 0.201 mV (Error: 1.0%)
+    Phase: -0.6 ± 2.9° (Error: 45.6°)
+    SNR: -0.4 dB
+    Residual Noise: 9.608 mV
+
+### Cleanup Utility
 
 ### Cleanup Utility
 
@@ -115,13 +124,13 @@ python clean.py --dry-run
 ### Troubleshooting
 
 #### Common Issues
->ModuleNotFoundError: No module named 'scipy'
+    ModuleNotFoundError: No module named 'scipy'
 ```bash
 pip install -r requirements.txt
 ```
->Import errors on Windows
->1.Ensure latest pip: python -m pip install --upgrade pip
->2.Install Microsoft Visual C++ Build Tools if needed
+    Import errors on Windows
+    1.Ensure latest pip: python -m pip install --upgrade pip
+    2.Install Microsoft Visual C++ Build Tools if needed
 
 ### Performance issues
 
@@ -130,24 +139,36 @@ pip install -r requirements.txt
 
 ### Theory
 
->Lock-In Amplifier Principle
->A lock-in amplifier extracts a signal at a specific reference frequency by:
->Multiplying the input signal with reference sine and cosine waves
->Low-pass filtering to extract DC components
->Calculating magnitude (R) and phase (θ) from X and Y components
+    **Lock-In Amplifier Principle**
+    A lock-in amplifier extracts a signal at a specific reference frequency by:
+    1.Multiplying the input signal with reference sine and cosine waves
+    2.Low-pass filtering to extract DC components
+    3.Calculating magnitude (R) and phase (θ) from X and Y components
 
 #### Mathematical Basis
 
->$X = (2/T) ∫ signal × cos(2πf_ref × t + φ) dt$
->$Y = (2/T) ∫ signal × sin(2πf_ref × t + φ) dt$
->$R = √(X² + Y²)$
->$θ = atan2(Y, X)$
+$$
+X = \frac{2}{T} \int \text{signal} \times \cos(2\pi f_{\text{ref}} \times t + \phi)  dt
+$$
+
+$$
+Y = \frac{2}{T} \int \text{signal} \times \sin(2\pi f_{\text{ref}} \times t + \phi)  dt
+$$
+
+$$
+R = \sqrt{X^2 + Y^2}
+$$
+
+$$
+\theta = \text{atan2}(Y, X)
+$$
 
 ### Contributing
 1. Fork the repository
 2. Create a feature branch
 3. Make your changes
 4. Submit a pull request
+
 
 
 
