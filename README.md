@@ -12,11 +12,11 @@ A comprehensive software implementation of a Lock-In Amplifier with performance 
 2. **Frequency Scanning**: Automatic optimal frequency detection
 3. **Autophase Optimization**: Automatic phase adjustment for maximum signal
 4. **Comprehensive Analysis**: 8-panel visualization of all performance metrics
-   [fig_scenarios.pdf](https://github.com/user-attachments/files/23264236/fig_scenarios.pdf)
+      ![fig_scenarios.pdf](https://github.com/user-attachments/files/23264236/fig_scenarios.pdf)
 6. **Realistic Signal Simulation**: Includes noise, harmonics, and phase impairments
 7. **Fast Execution**: JIT-compiled core functions using Numba
-   [Compiling Python code with @ji](https://numba.readthedocs.io/en/stable/user/jit.html)
-   [Numba website](https://numba.pydata.org/)
+      [Compiling Python code with @ji](https://numba.readthedocs.io/en/stable/user/jit.html)
+      [Numba website](https://numba.pydata.org/)
 9. **Command Line Interface**: User-friendly parameter configuration
 10. **Automated Logging**: Detailed analysis results with timestamps
 11. **High-Quality Plots**: 150 DPI PNG and JPG outputs
@@ -100,8 +100,6 @@ The program generates **timestamped** files:
 
 ### Cleanup Utility
 
-### Cleanup Utility
-
 #### Remove generated output files:
 
 ### Basic cleanup (with confirmation)
@@ -124,23 +122,25 @@ python clean.py --dry-run
 ### Troubleshooting
 
 #### Common Issues
-    ModuleNotFoundError: No module named 'scipy'
++ ModuleNotFoundError: No module named 'scipy'
 ```bash
 pip install -r requirements.txt
 ```
-    Import errors on Windows
++ Import errors on Windows:
     1.Ensure latest pip: python -m pip install --upgrade pip
     2.Install Microsoft Visual C++ Build Tools if needed
 
 ### Performance issues
 
->First run may be slower due to *JIT compilation*
->Subsequent runs will be faster due to *caching*
++ First run may be slower due to *JIT compilation*
++ Subsequent runs will be faster due to *caching*
 
 ### Theory
 
-    **Lock-In Amplifier Principle**
+    Lock-In Amplifier Principle
+    ===========================
     A lock-in amplifier extracts a signal at a specific reference frequency by:
+    
     1.Multiplying the input signal with reference sine and cosine waves
     2.Low-pass filtering to extract DC components
     3.Calculating magnitude (R) and phase (θ) from X and Y components
@@ -168,6 +168,7 @@ $$
 2. Create a feature branch
 3. Make your changes
 4. Submit a pull request
+
 
 
 
