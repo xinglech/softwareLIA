@@ -31,13 +31,15 @@ pip install numpy matplotlib scipy numba tqdm
 ```bash
 conda install numpy matplotlib scipy numba tqdm
 ```
+
 ### Verification
 ```bash
 python softwareLIA.py --help
 ```
 
 ### Quick Start
-#### Basic Usage
+
+#### Basic Usage (run scanning with default parameters)
 ```bash
 python softwareLIA.py
 ```
@@ -47,26 +49,27 @@ python softwareLIA.py
 python softwareLIA.py -f 100000 -a 0.005 -d 0.02 --freq-start 50000 --freq-end 150000
 ```
 ### Command Line Options
-Parameter	Description	Default
--f, --frequency	Signal frequency in Hz	123000
--a, --amplitude	Signal amplitude in V	0.01
--d, --duration	Signal duration in seconds	0.01
--p, --phase-offset	Phase offset in degrees	45
--n, --noise-level	Noise level	0.005
--sr, --sampling-rate	Sampling rate in Hz	2e6
--tc, --time-constant	Time constant in seconds	0.001
---freq-start	Frequency scan start in Hz	80000
---freq-end	Frequency scan end in Hz	160000
---freq-step	Frequency scan step in Hz	500
+Parameter	Description	**Default**
+>-f, --frequency	Signal frequency in **Hz**	123000
+>-a, --amplitude	Signal amplitude in **V**	0.01
+>-d, --duration	Signal duration in **seconds**	0.01
+>-p, --phase-offset	Phase offset in **degrees**	45
+>-n, --noise-level	Noise level	0.005
+>-sr, --sampling-rate	Sampling rate in **Hz**	2e6
+>-tc, --time-constant	Time constant in **seconds**	0.001
+>--freq-start	Frequency scan start in **Hz**	80000
+>--freq-end	Frequency scan end in **Hz**	160000
+>--freq-step	Frequency scan step in **Hz**	500
+
 ### Output Files
-The program generates timestamped files:
+The program generates **timestamped** files:
 
-Log file: lockin_analysis_YYYYMMDD_HHMMSS.log - Detailed analysis results
+**Log file**: lockin_analysis_YYYYMMDD_HHMMSS.log - Detailed analysis results
 
-Plot files: lockin_analysis_YYYYMMDD_HHMMSS.png/jpg - 8-panel comprehensive visualization
+**Plot files**: lockin_analysis_YYYYMMDD_HHMMSS.png/jpg - 8-panel comprehensive visualization
 
 ### Example Output
-text
+
 Software Lock-In Amplifier - Starting Analysis...
 ==================================================
 COMPREHENSIVE LOCK-IN PERFORMANCE ANALYSIS
@@ -88,7 +91,9 @@ R-magnitude: 9.898 ± 0.201 mV (Error: 1.0%)
 Phase: -0.6 ± 2.9° (Error: 45.6°)
 SNR: -0.4 dB
 Residual Noise: 9.608 mV
+
 ### Cleanup Utility
+
 #### Remove generated output files:
 
 ### Basic cleanup (with confirmation)
@@ -104,13 +109,14 @@ python clean.py --force
 python clean.py --dry-run
 ```
 ### Cleanup script options:
--f, --force: Force deletion without confirmation
++ -f, --force: Force deletion without confirmation
 
--d, --dry-run: Show what would be deleted without actually deleting
++ -d, --dry-run: Show what would be deleted without actually deleting
 
--y, --yes: Auto-confirm deletion
++ -y, --yes: Auto-confirm deletion
 
 ### Troubleshooting
+
 #### Common Issues
 ModuleNotFoundError: No module named 'scipy'
 
@@ -119,38 +125,42 @@ pip install -r requirements.txt
 ```
 Import errors on Windows
 
-Ensure latest pip: python -m pip install --upgrade pip
+>Ensure latest pip: python -m pip install --upgrade pip
 
-Install Microsoft Visual C++ Build Tools if needed
+>Install Microsoft Visual C++ Build Tools if needed
 
 ### Performance issues
 
-First run may be slower due to JIT compilation
+First run may be slower due to *JIT compilation*
 
-Subsequent runs will be faster due to caching
+Subsequent runs will be faster due to *caching*
 
 ### Theory
+
 Lock-In Amplifier Principle
-A lock-in amplifier extracts a signal at a specific reference frequency by:
 
-Multiplying the input signal with reference sine and cosine waves
+>A lock-in amplifier extracts a signal at a specific reference frequency by:
 
-Low-pass filtering to extract DC components
+>Multiplying the input signal with reference sine and cosine waves
 
-Calculating magnitude (R) and phase (θ) from X and Y components
+>Low-pass filtering to extract DC components
+
+>Calculating magnitude (R) and phase (θ) from X and Y components
 
 #### Mathematical Basis
-text
-X = (2/T) ∫ signal × cos(2πf_ref × t + φ) dt
-Y = (2/T) ∫ signal × sin(2πf_ref × t + φ) dt
-R = √(X² + Y²)
-θ = atan2(Y, X)
-Contributing
-Fork the repository
 
-Create a feature branch
+>X = (2/T) ∫ signal × cos(2πf_ref × t + φ) dt
+>Y = (2/T) ∫ signal × sin(2πf_ref × t + φ) dt
+>R = √(X² + Y²)
+>θ = atan2(Y, X)
 
-Make your changes
+### Contributing
+1. Fork the repository
 
-Submit a pull request
+2. Create a feature branch
+
+3. Make your changes
+
+4. Submit a pull request
+
 
