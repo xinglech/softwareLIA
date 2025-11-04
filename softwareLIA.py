@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """
 Software Lock-In Amplifier (LIA) - Comprehensive Performance Analysis
-Author: Your Name
-Version: 1.0
+Author: NSLX team
+Version: 3.0 (1.0, 2.0 not shown here)
 """
 
 import numpy as np
@@ -651,4 +651,5 @@ Examples:
         sys.exit(1)
 
 if __name__ == "__main__":
+
     main()
