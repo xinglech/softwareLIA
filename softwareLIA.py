@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 """
 Software Lock-In Amplifier (LIA) - Comprehensive Performance Analysis
-Author: NSLX team
-Version: 3.0 (1.0, 2.0 not shown here)
+Enhanced with robust hardware data acquisition and centralized results
+Author: NSLX Team
+Version: 4.0
 """
 
 import numpy as np
@@ -16,6 +17,17 @@ import argparse
 import sys
 import os
 from datetime import datetime
+import json
+import pandas as pd
+from pathlib import Path
+
+# Enhanced imports with robust fallback
+try:
+    from FG_input import acquire_fg_data, acquire_fg_data_robust, EnhancedFunctionGenerator
+    FG_AVAILABLE = True
+except ImportError:
+    FG_AVAILABLE = False
+    logging.warning("Function generator module not available. Using simulated data only.")
 
 # Configure logging to both console and file
 def setup_logging(log_file='lockin_analysis.log'):
@@ -36,7 +48,7 @@ def setup_logging(log_file='lockin_analysis.log'):
     console_handler.setLevel(logging.INFO)
     
     # Formatter
-    formatter = logging.Formatter('%(message)s')
+    formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
     file_handler.setFormatter(formatter)
     console_handler.setFormatter(formatter)
     
@@ -165,10 +177,62 @@ class OptimizedLockInAmplifier:
         return (opt_freq_phase, opt_freq_mag, frequencies, phase_responses, 
                 magnitude_responses, execution_times, residual_noises)
 
-def generate_realistic_signal(f_signal=123000, amplitude=0.01, duration=0.01, noise_level=0.005, phase_offset=45):
-    """Generate test signal with realistic impairments"""
-    fs = 2e6
+def generate_realistic_signal(f_signal=123000, amplitude=0.01, duration=0.01, 
+                            noise_level=0.005, phase_offset=45, 
+                            use_real_data=False, fg_ip_address='192.168.0.5',
+                            fallback_to_simulated=True):
+    """
+    Enhanced signal generation with robust hardware fallback
     
+    Returns:
+        tuple: (signal, time, f_target, clean_signal, acquisition_info)
+    """
+    acquisition_info = {
+        'data_source': 'simulated',
+        'connection_type': 'N/A',
+        'actual_sampling_rate': 2e6,
+        'samples_acquired': 0,
+        'hardware_available': FG_AVAILABLE
+    }
+    
+    if use_real_data and FG_AVAILABLE:
+        try:
+            # Use robust acquisition with connection info
+            signal, t, actual_fs, conn_type = acquire_fg_data_robust(
+                ip_address=fg_ip_address,
+                duration=duration,
+                sampling_rate=2e6
+            )
+            
+            # Update acquisition info
+            acquisition_info.update({
+                'data_source': 'hardware',
+                'connection_type': conn_type,
+                'actual_sampling_rate': actual_fs,
+                'samples_acquired': len(signal),
+                'ip_address': fg_ip_address
+            })
+            
+            logging.info(f"✓ Hardware data acquired via {conn_type}: "
+                        f"{len(signal)} samples at {actual_fs/1e6:.2f} MHz")
+            
+            # For real data, use the signal as both clean and noisy
+            clean = signal.copy()  
+            
+            return signal, t, f_signal, clean, acquisition_info
+            
+        except Exception as e:
+            logging.error(f"Real data acquisition failed: {e}")
+            acquisition_info['acquisition_error'] = str(e)
+            
+            if fallback_to_simulated:
+                logging.info("Falling back to simulated data...")
+                acquisition_info['data_source'] = 'simulated_fallback'
+            else:
+                raise
+    
+    # Simulated data generation (safety net)
+    fs = 2e6
     t = np.linspace(0, duration, int(fs * duration))
     
     # Clean signal with phase offset
@@ -183,13 +247,179 @@ def generate_realistic_signal(f_signal=123000, amplitude=0.01, duration=0.01, no
     impaired_signal = (clean_signal + noise + harmonic_distortion + 
                       dc_offset + 0.0005 * phase_noise * np.cos(2 * np.pi * f_signal * t))
     
-    return impaired_signal, t, f_signal, clean_signal
+    # Update acquisition info for simulated data
+    acquisition_info.update({
+        'actual_sampling_rate': fs,
+        'samples_acquired': len(impaired_signal)
+    })
+    
+    logging.info(f"Using simulated data: {len(impaired_signal)} samples")
+    
+    return impaired_signal, t, f_signal, clean_signal, acquisition_info
+
+class ResultsManager:
+    """
+    Centralized results management for comparing software vs hardware LIA results
+    """
+    def __init__(self, results_dir='lia_results'):
+        self.results_dir = Path(results_dir)
+        self.results_dir.mkdir(exist_ok=True)
+        self.comparison_data = {}
+        
+    def save_software_results(self, results_dict, timestamp=None):
+        """Save software LIA results"""
+        if timestamp is None:
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        
+        filename = self.results_dir / f'software_lia_{timestamp}.json'
+        
+        # Add metadata
+        results_dict['metadata'] = {
+            'timestamp': timestamp,
+            'analysis_type': 'software_lia',
+            'version': '2.0'
+        }
+        
+        with open(filename, 'w') as f:
+            json.dump(results_dict, f, indent=2, default=self._json_serializer)
+        
+        logging.info(f"Software results saved to {filename}")
+        return filename
+    
+    def import_hardware_results(self, hardware_file):
+        """Import hardware LIA results from stream.py output"""
+        hardware_file = Path(hardware_file)
+        
+        if hardware_file.suffix == '.csv':
+            # Assume CSV format from stream.py
+            df = pd.read_csv(hardware_file)
+            hardware_results = {
+                'source': 'hardware_lia',
+                'filename': str(hardware_file),
+                'data_points': len(df),
+                'variables': list(df.columns),
+                'timestamp': datetime.fromtimestamp(hardware_file.stat().st_mtime).strftime("%Y%m%d_%H%M%S")
+            }
+            
+            # Extract key metrics from hardware data
+            if 'X' in df.columns and 'Y' in df.columns:
+                X = df['X'].values
+                Y = df['Y'].values
+                hardware_results['X_mean'] = float(np.mean(X))
+                hardware_results['Y_mean'] = float(np.mean(Y))
+                hardware_results['R_mean'] = float(np.sqrt(np.mean(X)**2 + np.mean(Y)**2))
+                hardware_results['phase_mean'] = float(np.degrees(np.arctan2(np.mean(Y), np.mean(X))))
+                
+        elif hardware_file.suffix == '.json':
+            # JSON format
+            with open(hardware_file, 'r') as f:
+                hardware_results = json.load(f)
+        else:
+            raise ValueError(f"Unsupported file format: {hardware_file.suffix}")
+        
+        self.comparison_data['hardware'] = hardware_results
+        logging.info(f"Hardware results imported from {hardware_file}")
+        return hardware_results
+    
+    def create_comparison_report(self, software_results, hardware_results=None):
+        """Create comprehensive comparison report"""
+        comparison = {
+            'timestamp': datetime.now().strftime("%Y%m%d_%H%M%S"),
+            'software': software_results,
+            'hardware': hardware_results
+        }
+        
+        if hardware_results and 'R_mean' in hardware_results and 'R_mean' in software_results:
+            # Calculate differences
+            r_software = software_results['R_mean']
+            r_hardware = hardware_results['R_mean']
+            phase_software = software_results['phase_mean']
+            phase_hardware = hardware_results['phase_mean']
+            
+            comparison['differences'] = {
+                'amplitude_ratio': r_software / r_hardware,
+                'amplitude_difference': r_software - r_hardware,
+                'phase_difference': phase_software - phase_hardware,
+                'amplitude_relative_error': abs(r_software - r_hardware) / r_hardware * 100
+            }
+        
+        filename = self.results_dir / f'comparison_{comparison["timestamp"]}.json'
+        with open(filename, 'w') as f:
+            json.dump(comparison, f, indent=2, default=self._json_serializer)
+        
+        logging.info(f"Comparison report saved to {filename}")
+        return comparison
+    
+    def _json_serializer(self, obj):
+        """JSON serializer for objects not serializable by default json code"""
+        if isinstance(obj, (np.integer, np.floating)):
+            return float(obj)
+        elif isinstance(obj, np.ndarray):
+            return obj.tolist()
+        elif isinstance(obj, datetime):
+            return obj.isoformat()
+        raise TypeError(f"Object of type {type(obj)} is not JSON serializable")
+    
+    def generate_comparison_plot(self, software_results, hardware_results=None):
+        """Generate comparison visualization"""
+        fig, axes = plt.subplots(2, 2, figsize=(15, 10))
+        fig.suptitle('Software vs Hardware LIA Comparison', fontsize=16, fontweight='bold')
+        
+        if hardware_results:
+            # Amplitude comparison
+            axes[0,0].bar(['Software', 'Hardware'], 
+                         [software_results.get('R_mean', 0), hardware_results.get('R_mean', 0)],
+                         color=['blue', 'red'], alpha=0.7)
+            axes[0,0].set_ylabel('Amplitude (V)')
+            axes[0,0].set_title('Amplitude Comparison')
+            axes[0,0].grid(True, alpha=0.3)
+            
+            # Phase comparison
+            axes[0,1].bar(['Software', 'Hardware'],
+                         [software_results.get('phase_mean', 0), hardware_results.get('phase_mean', 0)],
+                         color=['blue', 'red'], alpha=0.7)
+            axes[0,1].set_ylabel('Phase (degrees)')
+            axes[0,1].set_title('Phase Comparison')
+            axes[0,1].grid(True, alpha=0.3)
+            
+            # X-Y components
+            axes[1,0].bar(['X_soft', 'X_hard', 'Y_soft', 'Y_hard'],
+                         [software_results.get('X_mean', 0), hardware_results.get('X_mean', 0),
+                          software_results.get('Y_mean', 0), hardware_results.get('Y_mean', 0)],
+                         color=['lightblue', 'darkblue', 'lightcoral', 'darkred'])
+            axes[1,0].set_ylabel('Component Value (V)')
+            axes[1,0].set_title('X-Y Components Comparison')
+            axes[1,0].grid(True, alpha=0.3)
+            
+        # Data source info
+        axes[1,1].axis('off')
+        info_text = f"Software LIA Results:\n"
+        info_text += f"Data Source: {software_results.get('acquisition_info', {}).get('data_source', 'N/A')}\n"
+        info_text += f"Connection Type: {software_results.get('acquisition_info', {}).get('connection_type', 'N/A')}\n"
+        info_text += f"Samples: {software_results.get('acquisition_info', {}).get('samples_acquired', 0)}\n"
+        info_text += f"Sampling Rate: {software_results.get('acquisition_info', {}).get('actual_sampling_rate', 0)/1e6:.2f} MHz\n"
+        
+        if hardware_results:
+            info_text += f"\nHardware LIA Results:\n"
+            info_text += f"Data Points: {hardware_results.get('data_points', 0)}\n"
+            info_text += f"File: {Path(hardware_results.get('filename', '')).name}"
+        
+        axes[1,1].text(0.1, 0.9, info_text, transform=axes[1,1].transAxes, 
+                      fontsize=10, verticalalignment='top', family='monospace')
+        
+        plt.tight_layout()
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        plot_file = self.results_dir / f'comparison_plot_{timestamp}.png'
+        plt.savefig(plot_file, dpi=150, bbox_inches='tight')
+        plt.show()
+        
+        return plot_file
 
 def create_comprehensive_plots(signal, time, clean, X, Y, R, theta, reconstructed, residual,
                               frequencies, phase_responses, magnitude_responses, 
                               execution_times, residual_noises, opt_freq_phase, opt_freq_mag,
-                              input_params):
-    """Create 8-panel comprehensive analysis plots"""
+                              input_params, acquisition_info):
+    """Create 8-panel comprehensive analysis plots with acquisition info"""
     
     # Create the 8-panel figure structure
     fig = plt.figure(figsize=(20, 15))
@@ -437,54 +667,34 @@ def create_comprehensive_plots(signal, time, clean, X, Y, R, theta, reconstructe
     ax8.set_title('8. Detected Phase Over Time', fontweight='bold', fontsize=12)
     ax8.legend(fontsize=9)
     ax8.grid(True, alpha=0.3)
-    
-    # =======================================================================
-    # PANEL 9: Performance Summary
-    # =======================================================================
-    ax9 = plt.subplot(3, 3, 9)
-    ax9.axis('off')
-    
-    # Calculate final performance metrics
-    final_snr = 10 * np.log10(np.var(reconstructed[steady_start:]) / np.var(residual[steady_start:]))
-    settling_time = time_ms[steady_start]
-    
-    summary_text = (
-        "PERFORMANCE SUMMARY\n\n"
-        f"Target Signal:\n"
-        f"  Freq: {input_params['signal_frequency']/1000:.1f} kHz\n"
-        f"  Amp: {input_params['amplitude']*1000:.1f} mV\n"
-        f"  Phase: {input_params['phase_offset']}°\n\n"
-        f"Optimal Detection:\n"
-        f"  Freq (X): {opt_freq_phase/1000:.3f} kHz\n"
-        f"  Freq (R): {opt_freq_mag/1000:.3f} kHz\n"
-        f"  Phase: {np.degrees(theta_steady):.1f}°\n\n"
-        f"Final Performance:\n"
-        f"  SNR: {final_snr:.1f} dB\n"
-        f"  Residual: {np.std(residual_steady)*1000:.3f} mV\n"
-        f"  Settling: {settling_time:.1f} ms"
-    )
-    
-    ax9.text(0.05, 0.95, summary_text, transform=ax9.transAxes, fontsize=10,
-             verticalalignment='top', bbox=dict(boxstyle='round', facecolor='lightblue', alpha=0.8),
-             family='monospace')
-    
-    # Adjust layout and save
-    plt.tight_layout()
-    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    plt.savefig(f'lockin_analysis_{timestamp}.png', dpi=150, bbox_inches='tight')
-    plt.savefig(f'lockin_analysis_{timestamp}.jpg', dpi=150, bbox_inches='tight')
-    plt.show()
+
+    return {
+        'X_mean': x_steady,
+        'Y_mean': y_steady, 
+        'R_mean': r_steady,
+        'phase_mean': np.degrees(theta_steady),
+        'snr_db': final_snr,
+        'residual_noise': np.std(residual_steady),
+        'optimal_frequency': opt_freq_phase,
+        'acquisition_info': acquisition_info
+    }
 
 def comprehensive_performance_analysis(args):
-    """Comprehensive analysis with all requested metrics"""
-    logger = setup_logging(f'lockin_analysis_{datetime.now().strftime("%Y%m%d_%H%M%S")}.log')
+    """Comprehensive analysis with real or simulated data and results management"""
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    logger = setup_logging(f'lockin_analysis_{timestamp}.log')
+    
+    # Initialize results manager
+    results_manager = ResultsManager()
     
     logging.info("="*70)
     logging.info("SOFTWARE LOCK-IN AMPLIFIER - COMPREHENSIVE PERFORMANCE ANALYSIS")
+    if args.use_real_data:
+        logging.info("*** USING REAL DATA FROM FUNCTION GENERATOR ***")
     logging.info("="*70)
     logging.info(f"Analysis started at: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
     
-    # Input parameters from command line or defaults
+    # Input parameters
     input_params = {
         'signal_frequency': args.frequency,
         'amplitude': args.amplitude,
@@ -492,30 +702,20 @@ def comprehensive_performance_analysis(args):
         'sampling_rate': args.sampling_rate,
         'time_constant': args.time_constant,
         'noise_level': args.noise_level,
-        'phase_offset': args.phase_offset
+        'phase_offset': args.phase_offset,
+        'use_real_data': args.use_real_data
     }
     
-    logging.info("\nINPUT PARAMETERS:")
-    for key, value in input_params.items():
-        if 'frequency' in key:
-            logging.info(f"  {key}: {value/1000:.1f} kHz")
-        elif key == 'amplitude':
-            logging.info(f"  {key}: {value*1000:.1f} mV")
-        elif key == 'duration':
-            logging.info(f"  {key}: {value*1000:.1f} ms")
-        elif key == 'sampling_rate':
-            logging.info(f"  {key}: {value/1e6:.1f} MHz")
-        else:
-            logging.info(f"  {key}: {value}")
-    
-    # Generate signal
-    logging.info("\nGenerating test signal...")
-    signal, time, f_target, clean = generate_realistic_signal(
+    # Generate/Acquire signal
+    logging.info("\nAcquiring signal data...")
+    signal, time, f_target, clean, acquisition_info = generate_realistic_signal(
         f_signal=input_params['signal_frequency'],
         amplitude=input_params['amplitude'],
         duration=input_params['duration'],
         noise_level=input_params['noise_level'],
-        phase_offset=input_params['phase_offset']
+        phase_offset=input_params['phase_offset'],
+        use_real_data=args.use_real_data,
+        fg_ip_address=args.fg_ip_address
     )
     
     # Initialize lock-in
@@ -542,68 +742,58 @@ def comprehensive_performance_analysis(args):
     logging.info("\n3. DETAILED DEMODULATION ANALYSIS")
     X, Y, R, theta = lockin.demodulate(signal, time, opt_freq_phase)
     
-    # Calculate comprehensive metrics
-    steady_start = int(len(X) * 0.5)
-    x_steady = np.mean(X[steady_start:])
-    y_steady = np.mean(Y[steady_start:])
-    r_steady = np.mean(R[steady_start:])
-    theta_steady = np.mean(theta[steady_start:])
-    
-    x_std = np.std(X[steady_start:])
-    y_std = np.std(Y[steady_start:])
-    r_std = np.std(R[steady_start:])
-    theta_std = np.std(theta[steady_start:])
-    
-    # Calculate SNR and reconstruction quality
+    # Calculate reconstruction and residuals
     reconstructed = R * np.cos(2 * np.pi * opt_freq_phase * time + theta)
     residual = signal - reconstructed
-    signal_power = np.var(reconstructed[steady_start:])
-    noise_power = np.var(residual[steady_start:])
-    snr_db = 10 * np.log10(signal_power / noise_power) if noise_power > 0 else np.inf
     
-    # Error analysis
-    true_amplitude = input_params['amplitude']
-    x_expected = true_amplitude / np.sqrt(2)  # Theoretical X for in-phase
-    x_error = abs(x_steady - x_expected) / x_expected * 100
-    r_error = abs(r_steady - true_amplitude) / true_amplitude * 100
-    phase_error = abs(np.degrees(theta_steady) - input_params['phase_offset'])
-    
-    # Log comprehensive results
-    logging.info("\nFINAL RESULTS WITH UNCERTAINTIES:")
-    logging.info(f"Optimal Frequency (Phase): {opt_freq_phase/1000:.3f} ± {step_size/2000:.3f} kHz")
-    logging.info(f"Optimal Frequency (Magnitude): {opt_freq_mag/1000:.3f} ± {step_size/2000:.3f} kHz")
-    logging.info(f"Optimal Phase: {np.degrees(optimal_phase):.1f}°")
-    logging.info(f"X-component: {x_steady*1000:.3f} ± {x_std*1000:.3f} mV (Error: {x_error:.1f}%)")
-    logging.info(f"Y-component: {y_steady*1000:.3f} ± {y_std*1000:.3f} mV")
-    logging.info(f"R-magnitude: {r_steady*1000:.3f} ± {r_std*1000:.3f} mV (Error: {r_error:.1f}%)")
-    logging.info(f"Phase: {np.degrees(theta_steady):.1f} ± {np.degrees(theta_std):.1f}° (Error: {phase_error:.1f}°)")
-    logging.info(f"SNR: {snr_db:.1f} dB")
-    logging.info(f"Residual Noise: {np.std(residual)*1000:.3f} mV")
-    
-    # Create comprehensive plots
+    # Create comprehensive plots and get results
     logging.info("\nGenerating comprehensive plots...")
-    create_comprehensive_plots(signal, time, clean, X, Y, R, theta, reconstructed, residual,
-                              frequencies, phase_responses, magnitude_responses, 
-                              execution_times, residual_noises, opt_freq_phase, opt_freq_mag,
-                              input_params)
+    results = create_comprehensive_plots(signal, time, clean, X, Y, R, theta, 
+                                       reconstructed, residual, frequencies, 
+                                       phase_responses, magnitude_responses, 
+                                       execution_times, residual_noises, 
+                                       opt_freq_phase, opt_freq_mag, input_params,
+                                       acquisition_info)
+    
+    # Save software results
+    software_results = results_manager.save_software_results(results, timestamp)
+    
+    # Import and compare with hardware results if provided
+    if args.hardware_results:
+        try:
+            hardware_results = results_manager.import_hardware_results(args.hardware_results)
+            comparison = results_manager.create_comparison_report(results, hardware_results)
+            comparison_plot = results_manager.generate_comparison_plot(results, hardware_results)
+            logging.info(f"Comparison with hardware LIA completed: {comparison_plot}")
+        except Exception as e:
+            logging.error(f"Failed to import hardware results: {e}")
     
     logging.info(f"\nAnalysis completed at: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
     logging.info("Results saved to:")
-    logging.info(f"  - Log file: lockin_analysis_*.log")
-    logging.info(f"  - Plot files: lockin_analysis_*.png, lockin_analysis_*.jpg")
+    logging.info(f"  - Log file: lockin_analysis_{timestamp}.log")
+    logging.info(f"  - Plot files: lockin_analysis_{timestamp}.png/jpg")
+    logging.info(f"  - Results directory: {results_manager.results_dir}")
     
-    return lockin, signal, time, opt_freq_phase
+    return lockin, signal, time, opt_freq_phase, results
 
 def main():
     """Main command-line interface"""
     parser = argparse.ArgumentParser(
-        description='Software Lock-In Amplifier - Comprehensive Performance Analysis',
+        description='Software Lock-In Amplifier - Comprehensive Performance Analysis v2.0',
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
-  python software-LIA.py
-  python software-LIA.py -f 100000 -a 0.005 -d 0.02
-  python software-LIA.py --freq-start 50000 --freq-end 150000 --freq-step 250
+  # Basic analysis with simulated data
+  python softwareLIA.py
+  
+  # Real data analysis with fallback
+  python softwareLIA.py --use-real-data --fg-ip 192.168.0.5
+  
+  # Compare with hardware LIA results
+  python softwareLIA.py --use-real-data --hardware-results hardware_data.csv
+  
+  # Full analysis with custom parameters
+  python softwareLIA.py -f 100000 -a 0.005 -d 0.02 --use-real-data
         """
     )
     
@@ -633,16 +823,31 @@ Examples:
     parser.add_argument('--freq-step', type=float, default=500.0,
                        help='Frequency scan step size in Hz (default: 500)')
     
+    # Enhanced parameters
+    parser.add_argument('--use-real-data', action='store_true',
+                       help='Use real data from function generator instead of simulation')
+    parser.add_argument('--fg-ip', type=str, default='192.168.0.5',
+                       help='Function generator IP address (default: 192.168.0.5)')
+    parser.add_argument('--hardware-results', type=str,
+                       help='Path to hardware LIA results file for comparison (CSV or JSON)')
+    
     args = parser.parse_args()
     
-    print("Software Lock-In Amplifier - Starting Analysis...")
+    print("Software Lock-In Amplifier v2.0 - Starting Analysis...")
     print("="*50)
     
+    if args.use_real_data and not FG_AVAILABLE:
+        print("WARNING: Function generator module not available.")
+        print("Falling back to simulated data analysis.")
+        args.use_real_data = False
+    
     try:
-        lockin, signal, time, optimal_freq = comprehensive_performance_analysis(args)
+        lockin, signal, time, optimal_freq, results = comprehensive_performance_analysis(args)
         print("\n" + "="*50)
         print("Analysis completed successfully!")
-        print("Check the generated log files and plots for results.")
+        print(f"Data source: {results['acquisition_info']['data_source']}")
+        print(f"Connection type: {results['acquisition_info']['connection_type']}")
+        print("Check the generated files and results directory for detailed outputs.")
         print("="*50)
         
     except Exception as e:
@@ -651,5 +856,4 @@ Examples:
         sys.exit(1)
 
 if __name__ == "__main__":
-
     main()
