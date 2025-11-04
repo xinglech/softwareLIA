@@ -248,7 +248,9 @@ if fg.connection_type == 'UDP':
 -p, --port <P>               UDP Port (default: 1865)
 ```
 
-### Output files
+### Output Files
+
+```
 project/
 ├── lia_results/                 # Centralized results directory
 │   ├── software_lia_*.json     # Software LIA results
@@ -258,6 +260,7 @@ project/
 ├── lockin_analysis_*.png       # 8-panel analysis plots
 ├── lockin_analysis_*.log       # Detailed analysis logs
 └── hardware_data.csv          # Raw hardware LIA data
+```
 
 ### Troubleshooting
 
@@ -320,6 +323,7 @@ $$
 2. Create a feature branch
 3. Make your changes
 4. Submit a pull request
+
 
 
 
