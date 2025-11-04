@@ -26,7 +26,7 @@ A comprehensive software implementation of a Lock-In Amplifier with performance 
 
 13. Software LIA Implementation: Digital demodulation, filtering, and comprehensive analysis
 14. Hardware Integration: Support for real data acquisition from function generators
-15. Robust Fallback System: UDP → TCP → Simulated data fallback
+15. Robust Fallback System: UDP (RTB2004 do not support, remove UDP relevant codes) → TCP → Simulated data fallback
 16. Centralized Results: Compare software vs hardware LIA results
 17. Comprehensive Visualization: comparison dashboards
 18. Real-time Streaming: Support for UDP streaming from compatible instruments
@@ -323,6 +323,7 @@ $$
 2. Create a feature branch
 3. Make your changes
 4. Submit a pull request
+
 
 
 
