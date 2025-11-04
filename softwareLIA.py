@@ -443,6 +443,8 @@ def create_comprehensive_plots(signal, time, clean, X, Y, R, theta, reconstructe
     # Calculate SNR across frequency range
     snr_values = 20 * np.log10(np.array(magnitude_responses) / (np.array(residual_noises) + 1e-9))
 
+    final_snr = 10 * np.log10(np.var(reconstructed[steady_start:]) / np.var(residual[steady_start:]))
+    settling_time = time_ms[steady_start]
     # =======================================================================
     # PANEL 1: Frequency Scan - Phase vs Magnitude
     # =======================================================================
@@ -715,7 +717,7 @@ def comprehensive_performance_analysis(args):
         noise_level=input_params['noise_level'],
         phase_offset=input_params['phase_offset'],
         use_real_data=args.use_real_data,
-        fg_ip_address=args.fg_ip_address
+        fg_ip_address=args.fg_ip # remove _address
     )
     
     # Initialize lock-in
