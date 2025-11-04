@@ -1,12 +1,12 @@
 # Software Lock-In Amplifier (LIA)
 
-A comprehensive software implementation of a Lock-In Amplifier with performance analysis capabilities.
+A comprehensive software implementation of a Lock-In Amplifier with performance analysis capabilities (main branch), hardware integration capabilities, robust fallback systems, and centralized results management (hotfix/streaming branch).
 
 ### Hardware LIA reference
 1.[SR860 website](https://thinksrs.com/products/sr860.html)
 2.[SR860 user manual](https://www.thinksrs.com/downloads/pdfs/manuals/SR860m.pdf)
 
-### Features
+### Features (main branch)
 
 1. **Digital Lock-In Detection**: X, Y, R, and θ component extraction
 2. **Frequency Scanning**: Automatic optimal frequency detection
@@ -22,12 +22,24 @@ A comprehensive software implementation of a Lock-In Amplifier with performance 
 11. **High-Quality Plots**: 150 DPI PNG and JPG outputs
 12. **Cleanup Utility**: Easy removal of generated files
 
+(hotfix/streaming branch)
+
+13. Software LIA Implementation: Digital demodulation, filtering, and comprehensive analysis
+14. Hardware Integration: Support for real data acquisition from function generators
+15. Robust Fallback System: UDP → TCP → Simulated data fallback
+16. Centralized Results: Compare software vs hardware LIA results
+17. Comprehensive Visualization: comparison dashboards
+18. Real-time Streaming: Support for UDP streaming from compatible instruments
+
 ### Installation
 
 #### Method 1: Using requirements.txt (Recommended)
 ```bash
-git clone https://github.com/xinglech/softwareLIA.git
-cd softwareLIA
+# Clone repository
+git clone https://github.com/your-username/software-lia.git
+cd software-lia
+
+# Install dependencies
 pip install -r requirements.txt
 ```
 #### Method 2: Manual Installation
@@ -53,6 +65,16 @@ python softwareLIA.py
 
 #### Custom Analysis
 ```bash
+# Run with default parameters (simulated data)
+python softwareLIA.py
+
+# Custom frequency and amplitude
+python softwareLIA.py -f 100000 -a 0.005
+
+# Longer acquisition with specific time constant
+python softwareLIA.py -d 0.02 -tc 0.002
+
+# all-in-one line
 python softwareLIA.py -f 100000 -a 0.005 -d 0.02 --freq-start 50000 --freq-end 150000
 ```
 ### Command Line Options
@@ -119,7 +141,137 @@ python clean.py --dry-run
 + -d, --dry-run: Show what would be deleted without actually deleting
 + -y, --yes: Auto-confirm deletion
 
+### Advanced Workflow (hotfix/streaming branch)
+#### switch to streaming branch
+```bash
+git checkout hotfix/streaming
+pip install -r requirements.txt
+```
+
+#### Enhanced Installation
+```bash
+# Additional dependencies for hardware integration
+pip install RsInstrument python-vxi11 docopt
+
+# For centralized results management
+pip install pandas
+```
+
+#### Configure Hardware Connections
++ Ensure your instruments are properly connected:
+      1. Function Generator/Oscilloscope: 192.168.0.5 (default)
+      2. Hardware LIA (SR865): 172.25.98.253 (default)
+      
+#### Run Hardware LIA Streaming
+```bash
+# Basic streaming acquisition
+python stream.py --file hardware_data.csv --duration 10
+
+# Advanced streaming with specific parameters
+python stream.py --address 172.25.98.253 --duration 15 --vars XY --rate 50000 --file hardware_measurement.csv
+```
+
+#### Collect and Standardize Hardware Results
+```bash
+# Process hardware LIA output
+python hardware_results_collector.py hardware_data.csv
+
+# This creates standardized JSON and CSV files:
+# - hardware_results_YYYYMMDD_HHMMSS.json
+# - hardware_results_YYYYMMDD_HHMMSS.csv
+
+```
+#### Run Software LIA with Real Data
+```bash
+# Basic real data acquisition
+python softwareLIA.py --use-real-data
+
+# Real data with specific instrument IP
+python softwareLIA.py --use-real-data --fg-ip 192.168.0.5
+
+# Complete analysis with hardware comparison
+python softwareLIA.py --use-real-data --hardware-results hardware_results_20241201_143022.json
+
+# Custom analysis with real data
+python softwareLIA.py --use-real-data -f 100000 -a 0.01 -d 0.02 --freq-start 50000 --freq-end 150000
+```
+
+#### View Centralized Results
+```bash
+# Generate comprehensive comparison dashboard
+python comparison_dashboard.py
+```
+### Fallback Behavior
++ The system automatically handles connection issues:
+      1. UDP Streaming (if instrument supports it)
+      2. TCP Fallback (traditional SCPI commands)
+      3. Simulated Data (if hardware unavailable)
+```bash
+# Example: Force TCP connection only
+fg = EnhancedFunctionGenerator('192.168.0.5')
+if fg.connection_type == 'UDP':
+    fg.close()
+    # Reinitialize or use different parameters
+```
+
+### Software LIA Parameters
+```bash
+# Signal Parameters
+-f, --frequency FLOAT        Signal frequency in Hz (default: 123000)
+-a, --amplitude FLOAT        Signal amplitude in V (default: 0.01)
+-d, --duration FLOAT         Signal duration in seconds (default: 0.01)
+-p, --phase-offset FLOAT     Signal phase offset in degrees (default: 45)
+-n, --noise-level FLOAT      Noise level (default: 0.005)
+
+# Lock-in Parameters
+-sr, --sampling-rate FLOAT   Sampling rate in Hz (default: 2e6)
+-tc, --time-constant FLOAT   Lock-in time constant in seconds (default: 0.001)
+
+# Frequency Scan
+--freq-start FLOAT           Frequency scan start in Hz (default: 80000)
+--freq-end FLOAT             Frequency scan end in Hz (default: 160000)
+--freq-step FLOAT            Frequency scan step size in Hz (default: 500)
+
+# Enhanced Features
+--use-real-data              Use real data from function generator
+--fg-ip TEXT                 Function generator IP address (default: 192.168.0.5)
+--hardware-results TEXT      Path to hardware LIA results for comparison
+```
+
+### Hardware LIA Streaming Parameters
+```bash
+-a, --address <A>            IP address of SR865 (default: 172.25.98.253)
+-d, --duration <D>           Transfer duration in seconds (default: 10)
+-f, --file <F>               Output filename
+-v, --vars <V>               Variables to stream: X, XY, RT, or XYRT (default: X)
+-r, --rate <R>               Sample rate per second (default: 1e5)
+-p, --port <P>               UDP Port (default: 1865)
+```
+
+### Output files
+project/
+├── lia_results/                 # Centralized results directory
+│   ├── software_lia_*.json     # Software LIA results
+│   ├── hardware_results_*.json # Hardware LIA results  
+│   ├── comparison_*.json       # Comparison reports
+│   └── comparison_plot_*.png   # Comparison visualizations
+├── lockin_analysis_*.png       # 8-panel analysis plots
+├── lockin_analysis_*.log       # Detailed analysis logs
+└── hardware_data.csv          # Raw hardware LIA data
+
 ### Troubleshooting
+
+#### Hardware Connection Failed
+
+WARNING: Function generator module not available.
+Falling back to simulated data analysis.
+
+Solution: Check instrument IP addresses and network connectivity.
+
+#### UDP Streaming Not Working
+UDP connection failed: [Error details]
+Solution: The system automatically falls back to TCP. Check firewall settings for UDP port 1865.
+
 
 #### Common Issues
 + ModuleNotFoundError: No module named 'scipy'
@@ -168,6 +320,7 @@ $$
 2. Create a feature branch
 3. Make your changes
 4. Submit a pull request
+
 
 
 
